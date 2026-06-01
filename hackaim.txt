@@ -1,0 +1,103 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({Name = "traidep Hub | Final Build", LoadingTitle = "Khởi chạy toàn bộ module...", LoadingSubtitle = "by Anh la trai dep"})
+
+-- Cấu hình mặc định
+local AimbotEnabled = false
+local AimPart = "Head" -- Mặc định là Head
+local FOVRadius = 300
+local Smoothness = 0.15
+local Whitelist = {}
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Phím F để Whitelist (xóa đồng đội khỏi aim)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F then
+        local target = LocalPlayer:GetMouse().Target
+        if target and target.Parent:FindFirstChild("Humanoid") then
+            local p = Players:GetPlayerFromCharacter(target.Parent)
+            if p then
+                Whitelist[p.Name] = not Whitelist[p.Name]
+                Rayfield:Notify({Title = "Whitelist", Content = (Whitelist[p.Name] and "Đã ẩn: " or "Đã hiện: ") .. p.Name})
+            end
+        end
+    end
+end)
+
+-- Hàm kiểm tra Địch + WallCheck
+local function IsAnEnemy(player)
+    if player == LocalPlayer or Whitelist[player.Name] then return false end
+    local char = player.Character
+    if not char then return false end
+
+    -- 1. Kiểm tra Team
+    if LocalPlayer.Team and player.Team == LocalPlayer.Team then return false end
+
+    -- 2. Kiểm tra Aura (Highlight Xanh)
+    local hl = char:FindFirstChildWhichIsA("Highlight", true)
+    if hl then
+        local col = hl.FillColor
+        if (col.B > 0.4 and col.R < 0.2) or (col.G > 0.4 and col.R < 0.2) then return false end
+    end
+
+    -- 3. Kiểm tra Vật Cản (Wall Check)
+    local targetPart = char:FindFirstChild(AimPart) or char:FindFirstChild("HumanoidRootPart")
+    if targetPart then
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        local ray = workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position), params)
+        if ray then return false end 
+    end
+
+    return true
+end
+
+-- Tab Cài đặt
+local Tab = Window:CreateTab("Aimbot", 4483362458)
+Tab:CreateToggle({Name = "Bật Aimbot", Callback = function(v) AimbotEnabled = v end})
+
+-- THÊM LẠI LỰA CHỌN VỊ TRÍ AIM
+Tab:CreateDropdown({
+   Name = "Vị trí Aim",
+   Options = {"Head", "HumanoidRootPart", "UpperTorso"},
+   CurrentOption = {"Head"},
+   Callback = function(o) AimPart = o[1] end,
+})
+
+Tab:CreateSlider({Name = "FOV", Range = {100, 800}, CurrentValue = 300, Callback = function(v) FOVRadius = v end})
+
+-- Vòng lặp chính
+RunService.RenderStepped:Connect(function()
+    if not AimbotEnabled then return end
+    
+    local Target = nil
+    local ClosestDist = FOVRadius
+    local Center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            if IsAnEnemy(player) then
+                local Part = player.Character:FindFirstChild(AimPart) or player.Character:FindFirstChild("HumanoidRootPart")
+                if Part then
+                    local pos, onScreen = Camera:WorldToScreenPoint(Part.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(pos.X, pos.Y) - Center).Magnitude
+                        if dist < ClosestDist then
+                            ClosestDist = dist
+                            Target = Part
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if Target then
+        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Target.Position), Smoothness)
+    end
+end)
