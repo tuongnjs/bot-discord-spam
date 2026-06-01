@@ -1,5 +1,14 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local Window = Rayfield:CreateWindow({Name = "traidep Hub | Final Build", LoadingTitle = "Khởi chạy toàn bộ module...", LoadingSubtitle = "by Anh la trai dep"})
+
+local Window = Rayfield:CreateWindow({
+   Name = "traidep Hub | Final Build",
+   LoadingTitle = "Khởi chạy toàn bộ module...",
+   LoadingSubtitle = "by Anh la trai dep",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "traidepHub" -- Bạn có thể đổi tên thư mục lưu cấu hình ở đây
+   }
+})
 
 -- Cấu hình mặc định
 local AimbotEnabled = false
